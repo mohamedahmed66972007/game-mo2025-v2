@@ -55,13 +55,13 @@ export function CurrentGuessDisplay() {
 
   return (
     <Text
-      position={[0, 0.7, -5]}
-      fontSize={0.5}
+      position={[0, 0.5, -7.9]}
+      fontSize={0.4}
       color={feedbackColor}
       anchorX="center"
       anchorY="middle"
       fontWeight="bold"
-      maxWidth={10}
+      maxWidth={8}
     >
       {feedbackText}
     </Text>

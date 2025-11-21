@@ -41,6 +41,13 @@ interface MultiplayerState {
   firstWinnerAttempts: number;
   gameResult: "pending" | "won" | "lost" | "tie";
   rematchRequested: boolean;
+  pendingWin: boolean;
+  pendingWinMessage: string;
+  opponentStatus: string;
+  opponentWonFirst: boolean;
+  showResults: boolean;
+  turnTimerActive: boolean;
+  showOpponentAttempts: boolean;
 }
 
 interface NumberGameState {
@@ -80,6 +87,11 @@ interface NumberGameState {
   setFirstWinner: (firstWinnerId: string, attempts: number) => void;
   setGameResult: (result: "pending" | "won" | "lost" | "tie") => void;
   setRematchRequested: (requested: boolean) => void;
+  setPendingWin: (pending: boolean, message: string) => void;
+  setOpponentStatus: (status: string, opponentWonFirst: boolean) => void;
+  setShowResults: (show: boolean) => void;
+  setTurnTimerActive: (active: boolean) => void;
+  setShowOpponentAttempts: (show: boolean) => void;
   resetMultiplayer: () => void;
 }
 
@@ -151,6 +163,14 @@ export const useNumberGame = create<NumberGameState>()(
       firstWinnerId: null,
       firstWinnerAttempts: 0,
       gameResult: "pending",
+      rematchRequested: false,
+      pendingWin: false,
+      pendingWinMessage: "",
+      opponentStatus: "لم يفز الخصم بعد",
+      opponentWonFirst: false,
+      showResults: false,
+      turnTimerActive: true,
+      showOpponentAttempts: false,
     },
 
     setMode: (mode) => set({ mode }),
@@ -240,7 +260,7 @@ export const useNumberGame = create<NumberGameState>()(
 
     addMultiplayerDigit: (digit) => {
       const { multiplayer } = get();
-      if (multiplayer.currentGuess.length < 4 && multiplayer.phase === "playing" && multiplayer.attempts.length < 20) {
+      if (multiplayer.currentGuess.length < 4 && multiplayer.attempts.length < 20) {
         set({
           multiplayer: {
             ...multiplayer,
@@ -252,7 +272,7 @@ export const useNumberGame = create<NumberGameState>()(
 
     deleteMultiplayerDigit: () => {
       const { multiplayer } = get();
-      if (multiplayer.currentGuess.length > 0 && multiplayer.phase === "playing") {
+      if (multiplayer.currentGuess.length > 0) {
         set({
           multiplayer: {
             ...multiplayer,
@@ -264,7 +284,7 @@ export const useNumberGame = create<NumberGameState>()(
 
     submitMultiplayerGuess: () => {
       const { multiplayer } = get();
-      if (multiplayer.currentGuess.length === 4 && multiplayer.phase === "playing") {
+      if (multiplayer.currentGuess.length === 4) {
         set({
           multiplayer: {
             ...multiplayer,
@@ -288,6 +308,11 @@ export const useNumberGame = create<NumberGameState>()(
     setFirstWinner: (firstWinnerId, attempts) => set((state) => ({ multiplayer: { ...state.multiplayer, firstWinnerId, firstWinnerAttempts: attempts } })),
     setGameResult: (gameResult) => set((state) => ({ multiplayer: { ...state.multiplayer, gameResult } })),
     setRematchRequested: (rematchRequested) => set((state) => ({ multiplayer: { ...state.multiplayer, rematchRequested } })),
+    setPendingWin: (pendingWin, pendingWinMessage) => set((state) => ({ multiplayer: { ...state.multiplayer, pendingWin, pendingWinMessage } })),
+    setOpponentStatus: (opponentStatus, opponentWonFirst) => set((state) => ({ multiplayer: { ...state.multiplayer, opponentStatus, opponentWonFirst } })),
+    setShowResults: (showResults) => set((state) => ({ multiplayer: { ...state.multiplayer, showResults } })),
+    setTurnTimerActive: (turnTimerActive) => set((state) => ({ multiplayer: { ...state.multiplayer, turnTimerActive } })),
+    setShowOpponentAttempts: (showOpponentAttempts) => set((state) => ({ multiplayer: { ...state.multiplayer, showOpponentAttempts } })),
 
     resetMultiplayer: () =>
       set((state) => ({
@@ -303,6 +328,13 @@ export const useNumberGame = create<NumberGameState>()(
           firstWinnerAttempts: 0,
           gameResult: "pending",
           rematchRequested: false,
+          pendingWin: false,
+          pendingWinMessage: "",
+          opponentStatus: "لم يفز الخصم بعد",
+          opponentWonFirst: false,
+          showResults: false,
+          turnTimerActive: true,
+          showOpponentAttempts: false,
         },
       })),
   }))

@@ -10,6 +10,7 @@ import { MultiplayerLobby } from "./components/ui/MultiplayerLobby";
 import { SecretCodeSetup } from "./components/ui/SecretCodeSetup";
 import { GameHUD } from "./components/ui/GameHUD";
 import { GameOverScreen } from "./components/ui/GameOverScreen";
+import { OpponentAttemptsDialog } from "./components/ui/OpponentAttemptsDialog";
 import "@fontsource/inter";
 
 function App() {
@@ -63,12 +64,16 @@ function App() {
               
               {isMultiplayerGameActive && (
                 <>
-                  <GameScene />
-                  <GameHUD />
-                  <HomeButton />
-                  {(multiplayer.phase === "won" || multiplayer.phase === "lost") && (
-                    <GameOverScreen />
+                  {!multiplayer.showResults && (
+                    <>
+                      <GameScene />
+                      <GameHUD />
+                      <HomeButton />
+                    </>
                   )}
+                  {multiplayer.showResults && multiplayer.gameResult === "won" && <WinScreen />}
+                  {multiplayer.showResults && multiplayer.gameResult === "tie" && <WinScreen />}
+                  {multiplayer.showResults && multiplayer.gameResult === "lost" && <LoseScreen />}
                 </>
               )}
             </>
@@ -109,6 +114,8 @@ function App() {
           {!multiplayer.roomId && <Menu />}
         </>
       )}
+      
+      <OpponentAttemptsDialog />
     </div>
   );
 }

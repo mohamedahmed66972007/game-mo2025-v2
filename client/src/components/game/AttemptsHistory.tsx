@@ -116,7 +116,7 @@ export function AttemptsHistory() {
   const scrollProgress = maxScroll > 0 ? scrollOffset / maxScroll : 0;
 
   return (
-    <group position={[5, 2.8, -9.5]}>
+    <group position={[5, 2.5, -12.8]}>
       {/* خلفية اللوحة */}
       <RoundedBox
         args={[3.3, panelHeight, 0.25]}

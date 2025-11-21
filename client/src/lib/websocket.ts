@@ -143,26 +143,38 @@ const handleMessage = (message: any) => {
       }
       break;
 
-    case "first_winner_reached":
-      store.setFirstWinner(message.firstWinnerId, message.firstWinnerAttempts);
-      if (message.won) {
-        // I am the first winner - show secret but don't end game
+    case "first_winner_pending":
+      // I won first - show pending win message and wait for opponent
+      store.setFirstWinner(store.multiplayer.playerId, message.playerAttempts);
+      store.setPendingWin(true, message.message);
+      if (message.opponentSecret) {
         store.setOpponentSecretCode(message.opponentSecret);
-        useNumberGame.setState((state) => ({
-          multiplayer: {
-            ...state.multiplayer,
-            gameResult: "pending",
-          },
-        }));
       }
+      console.log("First winner pending - waiting for opponent to finish");
+      break;
+
+    case "opponent_won_first":
+      // Opponent won first - update status to show they won
+      store.setFirstWinner(message.firstWinnerId || "", message.opponentAttempts);
+      store.setOpponentStatus(message.message, true);
+      console.log("Opponent won first - limited turns left");
+      break;
+
+    case "opponent_status_update":
+      // Update opponent status on back wall
+      store.setOpponentStatus(message.message, message.opponentWon);
       break;
 
     case "game_result":
+      // Final game result - stop timer and show results page
       store.setMultiplayerEndTime();
+      store.setTurnTimerActive(false);
       if (message.opponentSecret) {
         store.setOpponentSecretCode(message.opponentSecret);
       }
       store.setGameResult(message.result);
+      store.setShowResults(true);
+      
       if (message.result === "won") {
         store.setMultiplayerPhase("won");
       } else if (message.result === "lost") {
@@ -170,6 +182,8 @@ const handleMessage = (message: any) => {
       } else if (message.result === "tie") {
         store.setMultiplayerPhase("won");
       }
+      
+      console.log("Game ended with result:", message.result);
       break;
 
     case "opponent_quit":

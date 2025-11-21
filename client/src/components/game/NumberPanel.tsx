@@ -359,7 +359,7 @@ export function NumberPanel({ isPointerLocked = false }: NumberPanelProps) {
     if (mode === "singleplayer") {
       playHit();
       addDigitToGuess(digit);
-    } else if (mode === "multiplayer" && multiplayer.isMyTurn && multiplayer.turnTimeLeft > 0 && multiplayer.phase === "playing") {
+    } else if (mode === "multiplayer" && multiplayer.turnTimeLeft > 0) {
       playHit();
       addMultiplayerDigit(digit);
     }
@@ -369,7 +369,7 @@ export function NumberPanel({ isPointerLocked = false }: NumberPanelProps) {
     if (mode === "singleplayer") {
       playHit();
       deleteLastDigit();
-    } else if (mode === "multiplayer" && multiplayer.isMyTurn && multiplayer.turnTimeLeft > 0 && multiplayer.phase === "playing") {
+    } else if (mode === "multiplayer" && multiplayer.turnTimeLeft > 0) {
       playHit();
       deleteMultiplayerDigit();
     }
@@ -379,7 +379,7 @@ export function NumberPanel({ isPointerLocked = false }: NumberPanelProps) {
     if (mode === "singleplayer") {
       playHit();
       submitGuess();
-    } else if (mode === "multiplayer" && multiplayer.isMyTurn && multiplayer.turnTimeLeft > 0 && multiplayer.phase === "playing") {
+    } else if (mode === "multiplayer" && multiplayer.turnTimeLeft > 0) {
       playHit();
       submitMultiplayerGuess();
       send({
@@ -395,7 +395,7 @@ export function NumberPanel({ isPointerLocked = false }: NumberPanelProps) {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Only allow input during active gameplay
       const isGameActive = (mode === "singleplayer") || 
-                          (mode === "multiplayer" && multiplayer.isMyTurn && multiplayer.turnTimeLeft > 0 && multiplayer.phase === "playing");
+                          (mode === "multiplayer" && multiplayer.turnTimeLeft > 0);
       
       if (!isGameActive) return;
       
@@ -421,16 +421,16 @@ export function NumberPanel({ isPointerLocked = false }: NumberPanelProps) {
   }, [mode, singleplayer, multiplayer, handleDigitClick, handleDeleteClick, handleConfirmClick]);
 
   const currentGuess = mode === "singleplayer" ? singleplayer.currentGuess : multiplayer.currentGuess;
-  const canConfirm = currentGuess.length === 4 && (mode === "singleplayer" || (multiplayer.isMyTurn && multiplayer.turnTimeLeft > 0 && multiplayer.phase === "playing"));
+  const canConfirm = currentGuess.length === 4 && (mode === "singleplayer" || multiplayer.turnTimeLeft > 0);
 
   return (
-    <group position={[0, 3.5, -9.5]}>
+    <group position={[0, 3.5, -12.3]}>
       <DisplayPanel />
 
       {[1, 2, 3].map((digit, idx) => (
         <NumberButton
           key={digit}
-          position={[(idx - 1) * 1.05, 0.8, 0.3]}
+          position={[(idx - 1) * 1.05, 0.8, -0.1]}
           digit={digit}
           onClick={handleDigitClick}
           isPointerLocked={isPointerLocked}
@@ -440,7 +440,7 @@ export function NumberPanel({ isPointerLocked = false }: NumberPanelProps) {
       {[4, 5, 6].map((digit, idx) => (
         <NumberButton
           key={digit}
-          position={[(idx - 1) * 1.05, -0.3, 0.3]}
+          position={[(idx - 1) * 1.05, -0.3, -0.1]}
           digit={digit}
           onClick={handleDigitClick}
           isPointerLocked={isPointerLocked}
@@ -450,21 +450,21 @@ export function NumberPanel({ isPointerLocked = false }: NumberPanelProps) {
       {[7, 8, 9].map((digit, idx) => (
         <NumberButton
           key={digit}
-          position={[(idx - 1) * 1.05, -1.4, 0.3]}
+          position={[(idx - 1) * 1.05, -1.4, -0.1]}
           digit={digit}
           onClick={handleDigitClick}
           isPointerLocked={isPointerLocked}
         />
       ))}
 
-      <DeleteButton position={[-1.05, -2.5, 0.3]} onClick={handleDeleteClick} isPointerLocked={isPointerLocked} />
+      <DeleteButton position={[-1.05, -2.5, -0.1]} onClick={handleDeleteClick} isPointerLocked={isPointerLocked} />
       <NumberButton
-        position={[0, -2.5, 0.3]}
+        position={[0, -2.5, -0.1]}
         digit={0}
         onClick={handleDigitClick}
         isPointerLocked={isPointerLocked}
       />
-      <ConfirmButton position={[1.05, -2.5, 0.3]} onClick={handleConfirmClick} enabled={canConfirm} isPointerLocked={isPointerLocked} />
+      <ConfirmButton position={[1.05, -2.5, -0.1]} onClick={handleConfirmClick} enabled={canConfirm} isPointerLocked={isPointerLocked} />
     </group>
   );
 }
