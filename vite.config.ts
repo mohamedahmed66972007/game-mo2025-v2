@@ -28,6 +28,13 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5000,
+    hmr: {
+      clientPort: 443,
+    },
+  },
+  preview: {
+    host: "0.0.0.0",
+    port: 5000,
   },
   // Add support for large models and audio files
   assetsInclude: ["**/*.gltf", "**/*.glb", "**/*.mp3", "**/*.ogg", "**/*.wav"],

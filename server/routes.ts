@@ -124,61 +124,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     // Set a new timeout for 60 seconds
     game.turnTimeoutHandle = setTimeout(() => {
-      // Only proceed if game hasn't been finalized yet
-      if (!game.firstWinnerId || game.firstWinnerId === "") {
-        // Add empty attempt for current player
-        const playerAttempts = game.attempts.get(turnPlayer.id) || [];
-        const emptyAttempt = {
-          guess: [],
-          correctCount: 0,
-          correctPositionCount: 0,
-        };
-        playerAttempts.push(emptyAttempt);
-        game.attempts.set(turnPlayer.id, playerAttempts);
+      // Add empty attempt for current player (timeout counts as empty guess)
+      if (!game.attempts.has(turnPlayer.id)) {
+        game.attempts.set(turnPlayer.id, []);
+      }
+      
+      const playerAttempts = game.attempts.get(turnPlayer.id)!;
+      const emptyAttempt = {
+        guess: [],
+        correctCount: 0,
+        correctPositionCount: 0,
+      };
+      playerAttempts.push(emptyAttempt);
+      const totalPlayerAttempts = playerAttempts.length;
 
-        // Send empty attempt to both players (without triggering game logic)
-        send(turnPlayer.ws, {
-          type: "guess_result",
-          playerId: turnPlayer.id,
-          guess: [],
-          correctCount: 0,
-          correctPositionCount: 0,
-          won: false,
-          nextTurn: opponentPlayer.id,
-        });
+      // Send empty attempt to both players
+      send(turnPlayer.ws, {
+        type: "guess_result",
+        playerId: turnPlayer.id,
+        guess: [],
+        correctCount: 0,
+        correctPositionCount: 0,
+        won: false,
+        nextTurn: opponentPlayer.id,
+      });
 
-        send(opponentPlayer.ws, {
-          type: "guess_result",
-          playerId: turnPlayer.id,
-          guess: [],
-          correctCount: 0,
-          correctPositionCount: 0,
-          won: false,
-          nextTurn: opponentPlayer.id,
-        });
+      send(opponentPlayer.ws, {
+        type: "guess_result",
+        playerId: turnPlayer.id,
+        guess: [],
+        correctCount: 0,
+        correctPositionCount: 0,
+        won: false,
+        nextTurn: opponentPlayer.id,
+      });
 
-        // Switch turn
+      // Clear timeout handle
+      if (game.turnTimeoutHandle) {
+        clearTimeout(game.turnTimeoutHandle);
+        game.turnTimeoutHandle = undefined;
+      }
+
+      // Check if first winner scenario is active
+      if (game.firstWinnerId) {
+        const opponentAttempts = game.attempts.get(opponentPlayer.id)?.length ?? 0;
+        
+        // If this timeout was for the player who lost first, check if they've used all attempts
+        if (turnPlayer.id !== game.firstWinnerId && totalPlayerAttempts >= game.firstWinnerAttempts) {
+          // Opponent (loser) has used all attempts - finalize the game
+          const firstWinnerPlayer = game.player1.id === game.firstWinnerId ? game.player1 : game.player2;
+          const loserPlayer = game.player1.id === turnPlayer.id ? game.player1 : game.player2;
+          
+          send(firstWinnerPlayer.ws, {
+            type: "game_result",
+            result: "won",
+            message: "لقد فزت",
+            opponentSecret: game.secretCodes.get(turnPlayer.id),
+            yourAttempts: game.firstWinnerAttempts,
+            opponentAttempts: totalPlayerAttempts,
+          });
+          send(loserPlayer.ws, {
+            type: "game_result",
+            result: "lost",
+            message: "لقد خسرت",
+            opponentSecret: game.secretCodes.get(firstWinnerPlayer.id),
+            yourAttempts: totalPlayerAttempts,
+            opponentAttempts: game.firstWinnerAttempts,
+          });
+          return;
+        } else if (turnPlayer.id === game.firstWinnerId && opponentAttempts >= game.firstWinnerAttempts) {
+          // First winner's turn timed out but opponent already has enough attempts - finalize
+          const firstWinnerPlayer = game.player1.id === game.firstWinnerId ? game.player1 : game.player2;
+          const loserPlayer = game.player1.id === opponentPlayer.id ? game.player1 : game.player2;
+          
+          send(firstWinnerPlayer.ws, {
+            type: "game_result",
+            result: "won",
+            message: "لقد فزت",
+            opponentSecret: game.secretCodes.get(opponentPlayer.id),
+            yourAttempts: game.firstWinnerAttempts,
+            opponentAttempts: opponentAttempts,
+          });
+          send(loserPlayer.ws, {
+            type: "game_result",
+            result: "lost",
+            message: "لقد خسرت",
+            opponentSecret: game.secretCodes.get(firstWinnerPlayer.id),
+            yourAttempts: opponentAttempts,
+            opponentAttempts: game.firstWinnerAttempts,
+          });
+          return;
+        }
+        
+        // Game still ongoing - continue turn
+        if (totalPlayerAttempts < game.firstWinnerAttempts) {
+          game.currentTurn = opponentPlayer.id;
+          game.turnStartTime = Date.now();
+          setTurnTimeout(game, opponentPlayer, turnPlayer);
+        }
+      } else {
+        // No first winner yet - switch turn normally
         game.currentTurn = opponentPlayer.id;
         game.turnStartTime = Date.now();
-
-        // IMPORTANT: If there's a first winner already, check if opponent should now finalize the game
-        if (game.firstWinnerId && opponentPlayer.id !== game.firstWinnerId) {
-          const opponentAttempts = game.attempts.get(opponentPlayer.id)?.length ?? 0;
-          // If opponent has reached/exceeded first winner's attempts, finalize the game
-          if (opponentAttempts >= game.firstWinnerAttempts) {
-            const firstWinnerPlayer = game.player1.id === game.firstWinnerId ? game.player1 : game.player2;
-            const loserPlayer = game.player1.id === opponentPlayer.id ? game.player1 : game.player2;
-            // Clear timeout before finalizing
-            if (game.turnTimeoutHandle) {
-              clearTimeout(game.turnTimeoutHandle);
-              game.turnTimeoutHandle = undefined;
-            }
-            finalizeGame(game, firstWinnerPlayer, loserPlayer, game.firstWinnerAttempts, opponentAttempts);
-            return;
-          }
-        }
-
-        // Set timeout for opponent only if game is still ongoing
         setTurnTimeout(game, opponentPlayer, turnPlayer);
       }
     }, 60000); // 60 seconds
@@ -399,47 +446,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (won) {
           // Player won - check if this is the first winner
           if (!game.firstWinnerId) {
-            // This is the first winner
+            // This is the first winner - mark them but don't finalize yet
             game.firstWinnerId = player.id;
             game.firstWinnerAttempts = playerAttempts;
             
-            // Notify winner - show secret code but don't finalize yet
+            // Send pending win message to winner
             send(player.ws, {
-              type: "first_winner_reached",
+              type: "first_winner_pending",
               won: true,
-              firstWinnerId: player.id,
-              firstWinnerAttempts: playerAttempts,
+              message: "لقد خمنت الرقم السري بشكل صحيح ولكن لن تفوز حتى يأخذ خصمك فرصته الأخيره",
+              playerAttempts,
+              opponentAttempts,
               opponentSecret: opponentSecret,
             });
             
-            // Notify opponent - they have limited attempts left
-            const opponentTurnsLeft = game.firstWinnerAttempts - opponentAttempts;
+            // Notify opponent that first player won - update their status
             send(opponent.ws, {
-              type: "first_winner_reached",
-              firstWinnerId: player.id,
-              firstWinnerName: player.name,
-              firstWinnerAttempts: playerAttempts,
-              opponentTurnsLeft,
+              type: "opponent_won_first",
+              message: "الخصم فاز — وهذه آخر محاولة لك",
+              opponentAttempts: playerAttempts,
+              yourAttempts: opponentAttempts,
+              turnsLeft: playerAttempts - opponentAttempts,
             });
             
-            // Check if opponent still has turns available
-            if (opponentTurnsLeft > 0) {
-              // Continue game - opponent gets to play
+            // Continue game - opponent gets their remaining turns
+            const turnsLeft = game.firstWinnerAttempts - opponentAttempts;
+            if (turnsLeft > 0) {
               game.currentTurn = opponent.id;
               game.turnStartTime = Date.now();
               setTurnTimeout(game, opponent, player);
             } else {
-              // Opponent already used all attempts without winning
+              // Opponent has no turns left - first winner wins
               if (game.turnTimeoutHandle) {
                 clearTimeout(game.turnTimeoutHandle);
                 game.turnTimeoutHandle = undefined;
               }
               const firstWinnerPlayer = game.player1.id === player.id ? game.player1 : game.player2;
               const loserPlayer = game.player1.id === player.id ? game.player2 : game.player1;
-              finalizeGame(game, firstWinnerPlayer, loserPlayer, playerAttempts, opponentAttempts);
+              
+              send(firstWinnerPlayer.ws, {
+                type: "game_result",
+                result: "won",
+                message: "لقد فزت",
+                opponentSecret: game.secretCodes.get(opponent.id),
+                yourAttempts: playerAttempts,
+                opponentAttempts,
+              });
+              send(loserPlayer.ws, {
+                type: "game_result",
+                result: "lost",
+                message: "لقد خسرت",
+                opponentSecret: game.secretCodes.get(player.id),
+                yourAttempts: opponentAttempts,
+                opponentAttempts: playerAttempts,
+              });
             }
           } else if (player.id !== game.firstWinnerId) {
-            // Second player won - finalize now
+            // Second player also won - it's a tie
             if (game.turnTimeoutHandle) {
               clearTimeout(game.turnTimeoutHandle);
               game.turnTimeoutHandle = undefined;
@@ -448,24 +511,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const firstWinnerPlayer = game.player1.id === game.firstWinnerId ? game.player1 : game.player2;
             const secondWinnerPlayer = game.player1.id === player.id ? game.player1 : game.player2;
             
-            // Both won - send game_result to both
+            // Both won - send tie result to both
             send(firstWinnerPlayer.ws, {
               type: "game_result",
               result: "tie",
+              message: "تعادل",
               opponentSecret: game.secretCodes.get(player.id),
+              yourAttempts: game.firstWinnerAttempts,
+              opponentAttempts: playerAttempts,
             });
             send(secondWinnerPlayer.ws, {
               type: "game_result", 
               result: "tie",
+              message: "تعادل",
               opponentSecret: game.secretCodes.get(game.firstWinnerId),
+              yourAttempts: playerAttempts,
+              opponentAttempts: game.firstWinnerAttempts,
             });
           }
         } else {
           // Player did not win
           if (game.firstWinnerId && player.id !== game.firstWinnerId) {
             // This is second player - check if exceeded attempts
-            if (playerAttempts > game.firstWinnerAttempts) {
-              // Exceeded without winning - first winner wins
+            if (playerAttempts >= game.firstWinnerAttempts) {
+              // Opponent has used all attempts without winning - first winner wins
               if (game.turnTimeoutHandle) {
                 clearTimeout(game.turnTimeoutHandle);
                 game.turnTimeoutHandle = undefined;
@@ -476,12 +545,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               send(firstWinnerPlayer.ws, {
                 type: "game_result",
                 result: "won",
+                message: "لقد فزت",
                 opponentSecret: game.secretCodes.get(player.id),
+                yourAttempts: game.firstWinnerAttempts,
+                opponentAttempts: playerAttempts,
               });
               send(loserPlayer.ws, {
                 type: "game_result",
                 result: "lost",
+                message: "لقد خسرت",
                 opponentSecret: game.secretCodes.get(firstWinnerPlayer.id),
+                yourAttempts: playerAttempts,
+                opponentAttempts: game.firstWinnerAttempts,
               });
             } else {
               // Still has attempts left
@@ -490,9 +565,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
               setTurnTimeout(game, opponent, player);
             }
           } else {
+            // Normal turn - no first winner yet
             game.currentTurn = opponent.id;
             game.turnStartTime = Date.now();
             setTurnTimeout(game, opponent, player);
+            
+            // Send status update to both players about opponent status
+            send(player.ws, {
+              type: "opponent_status_update",
+              opponentWon: false,
+              message: "الخصم لم ينته بعد من محاولاته",
+            });
+            send(opponent.ws, {
+              type: "opponent_status_update",
+              opponentWon: false,
+              message: "الخصم لم ينته بعد من محاولاته",
+            });
           }
         }
         break;
