@@ -1,0 +1,75 @@
+make me a game 3d like io games
+1. General Environment
+Player is in a dark black room.
+In front of the player is a panel of purple-number buttons (0–9).
+Above the number buttons is a display box showing the 4 digits the player selected.
+A white center dot (crosshair) is always on the screen to allow clicking with gaze.
+gamestyle is FPS style
+Player dont see hands/arms or legs like FPS style.
+Player moves using W / A / S / D, mouse to look.
+1-SINGLEPLAYER MODE (Player vs Robot)
+Robot Logic
+Robot generates a 4-digit secret code.
+Digits can repeat (e.g., 3344 / 8099 / 1178).
+Gameplay
+Player uses raycast crosshair to click digits on the wall.
+Player can:
+Enter 4 digits
+Delete digits
+Confirm attempt with a ✔ button
+After confirming guess
+Show on the floor (or small panel):
+Correct digits (regardless of position)
+Correct digits in correct position
+Examples:
+“رقمين صح و واحد مكانه صح”
+“ولا رقم صح”
+“رقمين صح ولا واحد مكانه صح”
+“3 صح و 2 مكانهم صح”
+etc.
+Attempts History Wall
+Player can walk to the back-right of the room.
+A vertical list appears, showing:
+Each attempt
+The digits
+Correct count
+Correct-position count
+Example:
+3445 – رقم صح ومكانه غلط  
+4345 – رقم صح ومكانه صح  
+...
+Win Condition
+When the player guesses all 4 digits correctly:
+Stop the game
+Display:
+Number of attempts
+Time taken
+Player can restart
+2- MULTIPLAYER MODE (Up to 4 players per room)
+Room System
+A player can create or join a room via a room ID.
+Max room size = 4 players.
+Inside the room, a player chooses another player as their opponent.
+The opponent must accept the challenge.
+Before Match Starts
+Each player sets a secret 4-digit code for their opponent.
+After both codes are confirmed:
+A 10-second countdown begins.
+3- Turn-Based Gameplay
+Players alternate turns.
+Player A guesses → results shown  → cannot guess again until Player B plays.
+Each turn must be played within 60 seconds.
+If time runs out, the turn is skipped automatically.
+4- Winning Condition (Multiplayer)
+First player to guess the opponent’s code wins.
+Opponent receives:
+A message that they lost
+Number of attempts the winner used
+Game stops for both players.
+5- Technical Requirements
+First-person controller (mouse look + WASD)
+Click interaction using raycast at center dot
+Web-based 3D rendering
+Real-time multiplayer
+Clean responsive UI in 3D world space
+Code should be modular and well-organized
