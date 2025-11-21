@@ -1,0 +1,280 @@
+import { create } from "zustand";
+import { subscribeWithSelector } from "zustand/middleware";
+
+export type GameMode = "menu" | "singleplayer" | "multiplayer";
+export type GamePhase = "playing" | "won" | "lost";
+
+interface Attempt {
+  guess: number[];
+  correctCount: number;
+  correctPositionCount: number;
+}
+
+interface SingleplayerState {
+  secretCode: number[];
+  currentGuess: number[];
+  attempts: Attempt[];
+  phase: GamePhase;
+  startTime: number;
+  endTime: number | null;
+}
+
+interface MultiplayerState {
+  roomId: string;
+  playerId: string;
+  playerName: string;
+  players: { id: string; name: string }[];
+  opponentId: string | null;
+  mySecretCode: number[];
+  currentGuess: number[];
+  attempts: Attempt[];
+  opponentAttempts: Attempt[];
+  phase: GamePhase;
+  isMyTurn: boolean;
+  turnTimeLeft: number;
+  challengeStatus: "none" | "sent" | "received" | "accepted";
+  isChallengeSender: boolean;
+}
+
+interface NumberGameState {
+  mode: GameMode;
+  singleplayer: SingleplayerState;
+  multiplayer: MultiplayerState;
+
+  // Mode actions
+  setMode: (mode: GameMode) => void;
+
+  // Singleplayer actions
+  startSingleplayer: () => void;
+  addDigitToGuess: (digit: number) => void;
+  deleteLastDigit: () => void;
+  submitGuess: () => void;
+  restartSingleplayer: () => void;
+
+  // Multiplayer actions
+  setRoomId: (roomId: string) => void;
+  setPlayerId: (playerId: string) => void;
+  setPlayerName: (name: string) => void;
+  setPlayers: (players: { id: string; name: string }[]) => void;
+  setOpponentId: (opponentId: string | null) => void;
+  setMySecretCode: (code: number[]) => void;
+  addMultiplayerDigit: (digit: number) => void;
+  deleteMultiplayerDigit: () => void;
+  submitMultiplayerGuess: () => void;
+  setChallengeStatus: (status: "none" | "sent" | "received" | "accepted") => void;
+  setIsChallengeSender: (isChallengeSender: boolean) => void;
+  setIsMyTurn: (isMyTurn: boolean) => void;
+  setTurnTimeLeft: (time: number) => void;
+  addOpponentAttempt: (attempt: Attempt) => void;
+  setMultiplayerPhase: (phase: GamePhase) => void;
+  resetMultiplayer: () => void;
+}
+
+const generateSecretCode = (): number[] => {
+  return Array.from({ length: 4 }, () => Math.floor(Math.random() * 10));
+};
+
+const checkGuess = (secret: number[], guess: number[]): { correctCount: number; correctPositionCount: number } => {
+  let correctCount = 0;
+  let correctPositionCount = 0;
+
+  const secretCopy = [...secret];
+  const guessCopy = [...guess];
+
+  // First pass: check correct positions
+  for (let i = 0; i < 4; i++) {
+    if (guessCopy[i] === secretCopy[i]) {
+      correctPositionCount++;
+      secretCopy[i] = -1;
+      guessCopy[i] = -2;
+    }
+  }
+
+  // Second pass: check correct digits in wrong positions
+  for (let i = 0; i < 4; i++) {
+    if (guessCopy[i] !== -2) {
+      const index = secretCopy.indexOf(guessCopy[i]);
+      if (index !== -1) {
+        correctCount++;
+        secretCopy[index] = -1;
+      }
+    }
+  }
+
+  correctCount += correctPositionCount;
+
+  return { correctCount, correctPositionCount };
+};
+
+export const useNumberGame = create<NumberGameState>()(
+  subscribeWithSelector((set, get) => ({
+    mode: "menu",
+    singleplayer: {
+      secretCode: [],
+      currentGuess: [],
+      attempts: [],
+      phase: "playing",
+      startTime: 0,
+      endTime: null,
+    },
+    multiplayer: {
+      roomId: "",
+      playerId: "",
+      playerName: "",
+      players: [],
+      opponentId: null,
+      mySecretCode: [],
+      currentGuess: [],
+      attempts: [],
+      opponentAttempts: [],
+      phase: "playing",
+      isMyTurn: false,
+      turnTimeLeft: 60,
+      challengeStatus: "none",
+      isChallengeSender: false,
+    },
+
+    setMode: (mode) => set({ mode }),
+
+    startSingleplayer: () => {
+      const secretCode = generateSecretCode();
+      console.log("Secret code generated:", secretCode);
+      set({
+        mode: "singleplayer",
+        singleplayer: {
+          secretCode,
+          currentGuess: [],
+          attempts: [],
+          phase: "playing",
+          startTime: Date.now(),
+          endTime: null,
+        },
+      });
+    },
+
+    addDigitToGuess: (digit) => {
+      const { singleplayer } = get();
+      if (singleplayer.currentGuess.length < 4 && singleplayer.phase === "playing" && singleplayer.attempts.length < 20) {
+        set({
+          singleplayer: {
+            ...singleplayer,
+            currentGuess: [...singleplayer.currentGuess, digit],
+          },
+        });
+      }
+    },
+
+    deleteLastDigit: () => {
+      const { singleplayer } = get();
+      if (singleplayer.currentGuess.length > 0 && singleplayer.phase === "playing") {
+        set({
+          singleplayer: {
+            ...singleplayer,
+            currentGuess: singleplayer.currentGuess.slice(0, -1),
+          },
+        });
+      }
+    },
+
+    submitGuess: () => {
+      const { singleplayer } = get();
+      if (singleplayer.currentGuess.length === 4 && singleplayer.phase === "playing") {
+        const { correctCount, correctPositionCount } = checkGuess(
+          singleplayer.secretCode,
+          singleplayer.currentGuess
+        );
+
+        const newAttempt: Attempt = {
+          guess: singleplayer.currentGuess,
+          correctCount,
+          correctPositionCount,
+        };
+
+        const won = correctPositionCount === 4;
+        const newAttempts = [...singleplayer.attempts, newAttempt];
+        const lost = newAttempts.length >= 20 && !won;
+
+        set({
+          singleplayer: {
+            ...singleplayer,
+            attempts: newAttempts,
+            currentGuess: [],
+            phase: won ? "won" : (lost ? "lost" : "playing"),
+            endTime: (won || lost) ? Date.now() : null,
+          },
+        });
+      }
+    },
+
+    restartSingleplayer: () => {
+      get().startSingleplayer();
+    },
+
+    setRoomId: (roomId) => set((state) => ({ multiplayer: { ...state.multiplayer, roomId } })),
+    setPlayerId: (playerId) => set((state) => ({ multiplayer: { ...state.multiplayer, playerId } })),
+    setPlayerName: (playerName) => set((state) => ({ multiplayer: { ...state.multiplayer, playerName } })),
+    setPlayers: (players) => set((state) => ({ multiplayer: { ...state.multiplayer, players } })),
+    setOpponentId: (opponentId) => set((state) => ({ multiplayer: { ...state.multiplayer, opponentId } })),
+    setMySecretCode: (mySecretCode) => set((state) => ({ multiplayer: { ...state.multiplayer, mySecretCode } })),
+    setIsChallengeSender: (isChallengeSender) => set((state) => ({ multiplayer: { ...state.multiplayer, isChallengeSender } })),
+
+    addMultiplayerDigit: (digit) => {
+      const { multiplayer } = get();
+      if (multiplayer.currentGuess.length < 4 && multiplayer.phase === "playing" && multiplayer.attempts.length < 20) {
+        set({
+          multiplayer: {
+            ...multiplayer,
+            currentGuess: [...multiplayer.currentGuess, digit],
+          },
+        });
+      }
+    },
+
+    deleteMultiplayerDigit: () => {
+      const { multiplayer } = get();
+      if (multiplayer.currentGuess.length > 0 && multiplayer.phase === "playing") {
+        set({
+          multiplayer: {
+            ...multiplayer,
+            currentGuess: multiplayer.currentGuess.slice(0, -1),
+          },
+        });
+      }
+    },
+
+    submitMultiplayerGuess: () => {
+      const { multiplayer } = get();
+      if (multiplayer.currentGuess.length === 4 && multiplayer.phase === "playing") {
+        set({
+          multiplayer: {
+            ...multiplayer,
+            currentGuess: [],
+          },
+        });
+      }
+    },
+
+    setChallengeStatus: (challengeStatus) =>
+      set((state) => ({ multiplayer: { ...state.multiplayer, challengeStatus } })),
+    setIsMyTurn: (isMyTurn) => set((state) => ({ multiplayer: { ...state.multiplayer, isMyTurn } })),
+    setTurnTimeLeft: (turnTimeLeft) => set((state) => ({ multiplayer: { ...state.multiplayer, turnTimeLeft } })),
+    addOpponentAttempt: (attempt) =>
+      set((state) => ({
+        multiplayer: { ...state.multiplayer, opponentAttempts: [...state.multiplayer.opponentAttempts, attempt] },
+      })),
+    setMultiplayerPhase: (phase) => set((state) => ({ multiplayer: { ...state.multiplayer, phase } })),
+
+    resetMultiplayer: () =>
+      set((state) => ({
+        multiplayer: {
+          ...state.multiplayer,
+          currentGuess: [],
+          attempts: [],
+          opponentAttempts: [],
+          phase: "playing",
+          isMyTurn: false,
+          turnTimeLeft: 60,
+        },
+      })),
+  }))
+);
