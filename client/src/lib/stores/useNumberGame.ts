@@ -26,6 +26,7 @@ interface MultiplayerState {
   players: { id: string; name: string }[];
   opponentId: string | null;
   mySecretCode: number[];
+  opponentSecretCode: number[];
   currentGuess: number[];
   attempts: Attempt[];
   opponentAttempts: Attempt[];
@@ -34,6 +35,12 @@ interface MultiplayerState {
   turnTimeLeft: number;
   challengeStatus: "none" | "sent" | "received" | "accepted";
   isChallengeSender: boolean;
+  startTime: number;
+  endTime: number | null;
+  firstWinnerId: string | null;
+  firstWinnerAttempts: number;
+  gameResult: "pending" | "won" | "lost" | "tie";
+  rematchRequested: boolean;
 }
 
 interface NumberGameState {
@@ -58,6 +65,7 @@ interface NumberGameState {
   setPlayers: (players: { id: string; name: string }[]) => void;
   setOpponentId: (opponentId: string | null) => void;
   setMySecretCode: (code: number[]) => void;
+  setOpponentSecretCode: (code: number[]) => void;
   addMultiplayerDigit: (digit: number) => void;
   deleteMultiplayerDigit: () => void;
   submitMultiplayerGuess: () => void;
@@ -67,6 +75,11 @@ interface NumberGameState {
   setTurnTimeLeft: (time: number) => void;
   addOpponentAttempt: (attempt: Attempt) => void;
   setMultiplayerPhase: (phase: GamePhase) => void;
+  setMultiplayerStartTime: () => void;
+  setMultiplayerEndTime: () => void;
+  setFirstWinner: (firstWinnerId: string, attempts: number) => void;
+  setGameResult: (result: "pending" | "won" | "lost" | "tie") => void;
+  setRematchRequested: (requested: boolean) => void;
   resetMultiplayer: () => void;
 }
 
@@ -124,6 +137,7 @@ export const useNumberGame = create<NumberGameState>()(
       players: [],
       opponentId: null,
       mySecretCode: [],
+      opponentSecretCode: [],
       currentGuess: [],
       attempts: [],
       opponentAttempts: [],
@@ -132,6 +146,11 @@ export const useNumberGame = create<NumberGameState>()(
       turnTimeLeft: 60,
       challengeStatus: "none",
       isChallengeSender: false,
+      startTime: 0,
+      endTime: null,
+      firstWinnerId: null,
+      firstWinnerAttempts: 0,
+      gameResult: "pending",
     },
 
     setMode: (mode) => set({ mode }),
@@ -216,6 +235,7 @@ export const useNumberGame = create<NumberGameState>()(
     setPlayers: (players) => set((state) => ({ multiplayer: { ...state.multiplayer, players } })),
     setOpponentId: (opponentId) => set((state) => ({ multiplayer: { ...state.multiplayer, opponentId } })),
     setMySecretCode: (mySecretCode) => set((state) => ({ multiplayer: { ...state.multiplayer, mySecretCode } })),
+    setOpponentSecretCode: (opponentSecretCode) => set((state) => ({ multiplayer: { ...state.multiplayer, opponentSecretCode } })),
     setIsChallengeSender: (isChallengeSender) => set((state) => ({ multiplayer: { ...state.multiplayer, isChallengeSender } })),
 
     addMultiplayerDigit: (digit) => {
@@ -263,6 +283,11 @@ export const useNumberGame = create<NumberGameState>()(
         multiplayer: { ...state.multiplayer, opponentAttempts: [...state.multiplayer.opponentAttempts, attempt] },
       })),
     setMultiplayerPhase: (phase) => set((state) => ({ multiplayer: { ...state.multiplayer, phase } })),
+    setMultiplayerStartTime: () => set((state) => ({ multiplayer: { ...state.multiplayer, startTime: Date.now() } })),
+    setMultiplayerEndTime: () => set((state) => ({ multiplayer: { ...state.multiplayer, endTime: Date.now() } })),
+    setFirstWinner: (firstWinnerId, attempts) => set((state) => ({ multiplayer: { ...state.multiplayer, firstWinnerId, firstWinnerAttempts: attempts } })),
+    setGameResult: (gameResult) => set((state) => ({ multiplayer: { ...state.multiplayer, gameResult } })),
+    setRematchRequested: (rematchRequested) => set((state) => ({ multiplayer: { ...state.multiplayer, rematchRequested } })),
 
     resetMultiplayer: () =>
       set((state) => ({
@@ -274,6 +299,10 @@ export const useNumberGame = create<NumberGameState>()(
           phase: "playing",
           isMyTurn: false,
           turnTimeLeft: 60,
+          firstWinnerId: null,
+          firstWinnerAttempts: 0,
+          gameResult: "pending",
+          rematchRequested: false,
         },
       })),
   }))

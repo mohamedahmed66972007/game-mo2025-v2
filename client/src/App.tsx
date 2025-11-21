@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNumberGame } from "./lib/stores/useNumberGame";
 import { useAudio } from "./lib/stores/useAudio";
+import { send } from "./lib/websocket";
 import { GameScene } from "./components/game/GameScene";
 import { Menu } from "./components/ui/Menu";
 import { WinScreen } from "./components/ui/WinScreen";
@@ -14,6 +15,7 @@ import "@fontsource/inter";
 function App() {
   const { mode, singleplayer, multiplayer, setMode } = useNumberGame();
   const { setHitSound, setSuccessSound } = useAudio();
+  const [isPointerLocked, setIsPointerLocked] = useState(false);
 
   useEffect(() => {
     const hitAudio = new Audio("/sounds/hit.mp3");
@@ -71,6 +73,38 @@ function App() {
               )}
             </>
           )}
+
+          {multiplayer.opponentId && multiplayer.rematchRequested && (
+            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-90 z-50">
+              <div className="bg-gradient-to-br from-purple-900 to-pink-900 border-2 border-purple-500 rounded-2xl p-8 max-w-sm mx-4 text-center">
+                <p className="text-white text-2xl font-bold mb-4">طلب إعادة مباراة 🔄</p>
+                <p className="text-gray-300 mb-6">هل تريد إعادة المباراة مع الخصم؟</p>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => {
+                      send({ type: "accept_rematch" });
+                    }}
+                    className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-bold px-6 py-3 rounded-lg"
+                  >
+                    ✓ قبول
+                  </button>
+                  <button
+                    onClick={() => {
+                      const { setMode, resetMultiplayer } = useNumberGame.getState();
+                      resetMultiplayer();
+                      setMode("menu");
+                      setTimeout(() => {
+                        window.location.reload();
+                      }, 300);
+                    }}
+                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold px-6 py-3 rounded-lg"
+                  >
+                    ✕ رفض
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           
           {!multiplayer.roomId && <Menu />}
         </>
@@ -80,17 +114,19 @@ function App() {
 }
 
 function HomeButton() {
-  const { setMode, setMultiplayerPhase } = useNumberGame();
+  const { setMode, resetMultiplayer } = useNumberGame();
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleQuit = () => {
-    import("@/lib/websocket").then(({ send }) => {
+    import("@/lib/websocket").then(({ send, disconnect }) => {
       send({ type: "opponent_quit" });
+      disconnect();
     });
-    setMultiplayerPhase("lost");
+    resetMultiplayer();
+    setMode("menu");
     setTimeout(() => {
-      setMode("menu");
-    }, 500);
+      window.location.reload();
+    }, 300);
   };
 
   if (showConfirm) {

@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { useFrame, ThreeEvent } from "@react-three/fiber";
+import { useRef, useState, useEffect } from "react";
+import { useFrame, ThreeEvent, useThree } from "@react-three/fiber";
 import { Text, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import { useNumberGame } from "@/lib/stores/useNumberGame";
@@ -13,19 +13,70 @@ interface ButtonProps {
   onClick: (digit: number) => void;
 }
 
-function NumberButton({ position, digit, onClick }: ButtonProps) {
-  const [hovered, setHovered] = useState(false);
-  const meshRef = useRef<THREE.Mesh>(null);
+interface NumberButtonProps extends ButtonProps {
+  isPointerLocked?: boolean;
+  ref?: React.Ref<THREE.Mesh>;
+}
 
-  useFrame((state) => {
-    if (meshRef.current && hovered) {
+const NumberButton = ({ position, digit, onClick, isPointerLocked }: NumberButtonProps) => {
+  const [hovered, setHovered] = useState(false);
+  const [isHoveredByCenter, setIsHoveredByCenter] = useState(false);
+  const [buttonZ, setButtonZ] = useState(0);
+  const meshRef = useRef<THREE.Mesh>(null);
+  const raycaster = useRef(new THREE.Raycaster());
+  const { camera } = useThree();
+
+  useFrame(() => {
+    if (isPointerLocked && meshRef.current) {
+      const normalizedCoords = new THREE.Vector2(0, 0);
+      raycaster.current.setFromCamera(normalizedCoords, camera);
+      const intersects = raycaster.current.intersectObject(meshRef.current);
+      
+      if (intersects.length > 0) {
+        setIsHoveredByCenter(true);
+        meshRef.current.scale.setScalar(1.08);
+        meshRef.current.position.z = 0.12;
+        setButtonZ(0.12);
+      } else {
+        setIsHoveredByCenter(false);
+        meshRef.current.scale.setScalar(1);
+        meshRef.current.position.z = 0;
+        setButtonZ(0);
+      }
+    } else if (meshRef.current && hovered && !isPointerLocked) {
       meshRef.current.scale.setScalar(1.08);
       meshRef.current.position.z = 0.12;
+      setButtonZ(0.12);
     } else if (meshRef.current) {
       meshRef.current.scale.setScalar(1);
       meshRef.current.position.z = 0;
+      setButtonZ(0);
     }
   });
+
+  // Keyboard and mouse listener for center crosshair click
+  useEffect(() => {
+    if (!isPointerLocked || !isHoveredByCenter) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space" || e.code === "Enter") {
+        e.preventDefault();
+        onClick(digit);
+      }
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      e.preventDefault();
+      onClick(digit);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("mousedown", handleMouseDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("mousedown", handleMouseDown);
+    };
+  }, [isPointerLocked, isHoveredByCenter, digit, onClick]);
 
   return (
     <group position={position}>
@@ -35,15 +86,18 @@ function NumberButton({ position, digit, onClick }: ButtonProps) {
         radius={0.15}
         smoothness={6}
         onClick={(e: ThreeEvent<MouseEvent>) => {
-          e.stopPropagation();
-          onClick(digit);
+          if (!isPointerLocked) {
+            e.stopPropagation();
+            onClick(digit);
+          }
         }}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-          e.stopPropagation();
-          setHovered(true);
+          if (!isPointerLocked) {
+            e.stopPropagation();
+            setHovered(true);
+          }
         }}
         onPointerOut={(e: ThreeEvent<PointerEvent>) => {
-          e.stopPropagation();
           setHovered(false);
         }}
         castShadow
@@ -57,7 +111,7 @@ function NumberButton({ position, digit, onClick }: ButtonProps) {
         />
       </RoundedBox>
       <Text
-        position={[0, 0, 0.35]}
+        position={[0, 0, 0.16 + buttonZ]}
         fontSize={0.48}
         color="white"
         anchorX="center"
@@ -68,26 +122,72 @@ function NumberButton({ position, digit, onClick }: ButtonProps) {
       </Text>
     </group>
   );
-}
+};
 
 interface DeleteButtonProps {
   position: [number, number, number];
   onClick: () => void;
+  isPointerLocked?: boolean;
 }
 
-function DeleteButton({ position, onClick }: DeleteButtonProps) {
+const DeleteButton = ({ position, onClick, isPointerLocked }: DeleteButtonProps) => {
   const [hovered, setHovered] = useState(false);
+  const [isHoveredByCenter, setIsHoveredByCenter] = useState(false);
+  const [buttonZ, setButtonZ] = useState(0);
   const meshRef = useRef<THREE.Mesh>(null);
+  const raycaster = useRef(new THREE.Raycaster());
+  const { camera } = useThree();
 
   useFrame(() => {
-    if (meshRef.current && hovered) {
+    if (isPointerLocked && meshRef.current) {
+      const normalizedCoords = new THREE.Vector2(0, 0);
+      raycaster.current.setFromCamera(normalizedCoords, camera);
+      const intersects = raycaster.current.intersectObject(meshRef.current);
+      
+      if (intersects.length > 0) {
+        setIsHoveredByCenter(true);
+        meshRef.current.scale.setScalar(1.08);
+        meshRef.current.position.z = 0.12;
+        setButtonZ(0.12);
+      } else {
+        setIsHoveredByCenter(false);
+        meshRef.current.scale.setScalar(1);
+        meshRef.current.position.z = 0;
+        setButtonZ(0);
+      }
+    } else if (meshRef.current && hovered && !isPointerLocked) {
       meshRef.current.scale.setScalar(1.08);
       meshRef.current.position.z = 0.12;
+      setButtonZ(0.12);
     } else if (meshRef.current) {
       meshRef.current.scale.setScalar(1);
       meshRef.current.position.z = 0;
+      setButtonZ(0);
     }
   });
+
+  useEffect(() => {
+    if (!isPointerLocked || !isHoveredByCenter) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space" || e.code === "Enter") {
+        e.preventDefault();
+        onClick();
+      }
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      e.preventDefault();
+      onClick();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("mousedown", handleMouseDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("mousedown", handleMouseDown);
+    };
+  }, [isPointerLocked, isHoveredByCenter, onClick]);
 
   return (
     <group position={position}>
@@ -97,15 +197,18 @@ function DeleteButton({ position, onClick }: DeleteButtonProps) {
         radius={0.15}
         smoothness={6}
         onClick={(e: ThreeEvent<MouseEvent>) => {
-          e.stopPropagation();
-          onClick();
+          if (!isPointerLocked) {
+            e.stopPropagation();
+            onClick();
+          }
         }}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-          e.stopPropagation();
-          setHovered(true);
+          if (!isPointerLocked) {
+            e.stopPropagation();
+            setHovered(true);
+          }
         }}
         onPointerOut={(e: ThreeEvent<PointerEvent>) => {
-          e.stopPropagation();
           setHovered(false);
         }}
         castShadow
@@ -119,7 +222,7 @@ function DeleteButton({ position, onClick }: DeleteButtonProps) {
         />
       </RoundedBox>
       <Text
-        position={[0, 0, 0.35]}
+        position={[0, 0, 0.16 + buttonZ]}
         fontSize={0.42}
         color="white"
         anchorX="center"
@@ -130,27 +233,73 @@ function DeleteButton({ position, onClick }: DeleteButtonProps) {
       </Text>
     </group>
   );
-}
+};
 
 interface ConfirmButtonProps {
   position: [number, number, number];
   onClick: () => void;
   enabled: boolean;
+  isPointerLocked?: boolean;
 }
 
-function ConfirmButton({ position, onClick, enabled }: ConfirmButtonProps) {
+const ConfirmButton = ({ position, onClick, enabled, isPointerLocked }: ConfirmButtonProps) => {
   const [hovered, setHovered] = useState(false);
+  const [isHoveredByCenter, setIsHoveredByCenter] = useState(false);
+  const [buttonZ, setButtonZ] = useState(0);
   const meshRef = useRef<THREE.Mesh>(null);
+  const raycaster = useRef(new THREE.Raycaster());
+  const { camera } = useThree();
 
   useFrame(() => {
-    if (meshRef.current && hovered && enabled) {
+    if (isPointerLocked && meshRef.current && enabled) {
+      const normalizedCoords = new THREE.Vector2(0, 0);
+      raycaster.current.setFromCamera(normalizedCoords, camera);
+      const intersects = raycaster.current.intersectObject(meshRef.current);
+      
+      if (intersects.length > 0) {
+        setIsHoveredByCenter(true);
+        meshRef.current.scale.setScalar(1.08);
+        meshRef.current.position.z = 0.12;
+        setButtonZ(0.12);
+      } else {
+        setIsHoveredByCenter(false);
+        meshRef.current.scale.setScalar(1);
+        meshRef.current.position.z = 0;
+        setButtonZ(0);
+      }
+    } else if (meshRef.current && hovered && enabled && !isPointerLocked) {
       meshRef.current.scale.setScalar(1.08);
       meshRef.current.position.z = 0.12;
+      setButtonZ(0.12);
     } else if (meshRef.current) {
       meshRef.current.scale.setScalar(1);
       meshRef.current.position.z = 0;
+      setButtonZ(0);
     }
   });
+
+  useEffect(() => {
+    if (!isPointerLocked || !isHoveredByCenter || !enabled) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space" || e.code === "Enter") {
+        e.preventDefault();
+        onClick();
+      }
+    };
+
+    const handleMouseDown = (e: MouseEvent) => {
+      e.preventDefault();
+      onClick();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("mousedown", handleMouseDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("mousedown", handleMouseDown);
+    };
+  }, [isPointerLocked, isHoveredByCenter, enabled, onClick]);
 
   return (
     <group position={position}>
@@ -160,19 +309,18 @@ function ConfirmButton({ position, onClick, enabled }: ConfirmButtonProps) {
         radius={0.15}
         smoothness={6}
         onClick={(e: ThreeEvent<MouseEvent>) => {
-          if (enabled) {
+          if (!isPointerLocked && enabled) {
             e.stopPropagation();
             onClick();
           }
         }}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-          if (enabled) {
+          if (!isPointerLocked && enabled) {
             e.stopPropagation();
             setHovered(true);
           }
         }}
         onPointerOut={(e: ThreeEvent<PointerEvent>) => {
-          e.stopPropagation();
           setHovered(false);
         }}
         castShadow
@@ -186,7 +334,7 @@ function ConfirmButton({ position, onClick, enabled }: ConfirmButtonProps) {
         />
       </RoundedBox>
       <Text
-        position={[0, 0, 0.35]}
+        position={[0, 0, 0.16 + buttonZ]}
         fontSize={0.42}
         color="white"
         anchorX="center"
@@ -197,35 +345,42 @@ function ConfirmButton({ position, onClick, enabled }: ConfirmButtonProps) {
       </Text>
     </group>
   );
+};
+
+interface NumberPanelProps {
+  isPointerLocked?: boolean;
 }
 
-export function NumberPanel() {
+export function NumberPanel({ isPointerLocked = false }: NumberPanelProps) {
   const { mode, singleplayer, multiplayer, addDigitToGuess, deleteLastDigit, submitGuess, addMultiplayerDigit, deleteMultiplayerDigit, submitMultiplayerGuess } = useNumberGame();
   const { playHit } = useAudio();
 
   const handleDigitClick = (digit: number) => {
-    playHit();
     if (mode === "singleplayer") {
+      playHit();
       addDigitToGuess(digit);
-    } else if (mode === "multiplayer" && multiplayer.isMyTurn) {
+    } else if (mode === "multiplayer" && multiplayer.isMyTurn && multiplayer.turnTimeLeft > 0 && multiplayer.phase === "playing") {
+      playHit();
       addMultiplayerDigit(digit);
     }
   };
 
   const handleDeleteClick = () => {
-    playHit();
     if (mode === "singleplayer") {
+      playHit();
       deleteLastDigit();
-    } else if (mode === "multiplayer" && multiplayer.isMyTurn) {
+    } else if (mode === "multiplayer" && multiplayer.isMyTurn && multiplayer.turnTimeLeft > 0 && multiplayer.phase === "playing") {
+      playHit();
       deleteMultiplayerDigit();
     }
   };
 
   const handleConfirmClick = () => {
-    playHit();
     if (mode === "singleplayer") {
+      playHit();
       submitGuess();
-    } else if (mode === "multiplayer" && multiplayer.isMyTurn) {
+    } else if (mode === "multiplayer" && multiplayer.isMyTurn && multiplayer.turnTimeLeft > 0 && multiplayer.phase === "playing") {
+      playHit();
       submitMultiplayerGuess();
       send({
         type: "submit_guess",
@@ -235,52 +390,81 @@ export function NumberPanel() {
     }
   };
 
+  // Keyboard input listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only allow input during active gameplay
+      const isGameActive = (mode === "singleplayer") || 
+                          (mode === "multiplayer" && multiplayer.isMyTurn && multiplayer.turnTimeLeft > 0 && multiplayer.phase === "playing");
+      
+      if (!isGameActive) return;
+      
+      // Numbers 0-9
+      if (e.key >= "0" && e.key <= "9") {
+        e.preventDefault();
+        handleDigitClick(parseInt(e.key));
+      }
+      // Backspace or Delete
+      else if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        handleDeleteClick();
+      }
+      // Enter or Space for submit
+      else if (e.key === "Enter" || e.code === "Space") {
+        e.preventDefault();
+        handleConfirmClick();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mode, singleplayer, multiplayer, handleDigitClick, handleDeleteClick, handleConfirmClick]);
+
   const currentGuess = mode === "singleplayer" ? singleplayer.currentGuess : multiplayer.currentGuess;
-  const canConfirm = currentGuess.length === 4 && (mode === "singleplayer" || multiplayer.isMyTurn);
+  const canConfirm = currentGuess.length === 4 && (mode === "singleplayer" || (multiplayer.isMyTurn && multiplayer.turnTimeLeft > 0 && multiplayer.phase === "playing"));
 
   return (
     <group position={[0, 3.5, -9.5]}>
-      {/* Display screen - شاشة عرض فوق الأرقام */}
       <DisplayPanel />
 
-      {/* Row 1: 1 2 3 */}
       {[1, 2, 3].map((digit, idx) => (
         <NumberButton
           key={digit}
           position={[(idx - 1) * 1.05, 0.8, 0.3]}
           digit={digit}
           onClick={handleDigitClick}
+          isPointerLocked={isPointerLocked}
         />
       ))}
       
-      {/* Row 2: 4 5 6 */}
       {[4, 5, 6].map((digit, idx) => (
         <NumberButton
           key={digit}
           position={[(idx - 1) * 1.05, -0.3, 0.3]}
           digit={digit}
           onClick={handleDigitClick}
+          isPointerLocked={isPointerLocked}
         />
       ))}
 
-      {/* Row 3: 7 8 9 */}
       {[7, 8, 9].map((digit, idx) => (
         <NumberButton
           key={digit}
           position={[(idx - 1) * 1.05, -1.4, 0.3]}
           digit={digit}
           onClick={handleDigitClick}
+          isPointerLocked={isPointerLocked}
         />
       ))}
 
-      {/* Row 4: Delete - 0 - Confirm */}
-      <DeleteButton position={[-1.05, -2.5, 0.3]} onClick={handleDeleteClick} />
+      <DeleteButton position={[-1.05, -2.5, 0.3]} onClick={handleDeleteClick} isPointerLocked={isPointerLocked} />
       <NumberButton
         position={[0, -2.5, 0.3]}
         digit={0}
         onClick={handleDigitClick}
+        isPointerLocked={isPointerLocked}
       />
-      <ConfirmButton position={[1.05, -2.5, 0.3]} onClick={handleConfirmClick} enabled={canConfirm} />
+      <ConfirmButton position={[1.05, -2.5, 0.3]} onClick={handleConfirmClick} enabled={canConfirm} isPointerLocked={isPointerLocked} />
     </group>
   );
 }

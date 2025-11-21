@@ -63,26 +63,29 @@ export function MultiplayerLobby() {
           <CardTitle className="text-center text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 text-4xl font-bold mb-3">
             غرفة اللعب
           </CardTitle>
-          <p className="text-center text-gray-300 text-base mt-2">
-            رقم الغرفة: <span className="text-purple-400 font-mono font-bold">{multiplayer.roomId}</span>
-          </p>
         </CardHeader>
         
         <CardContent className="space-y-4 p-6">
-          {multiplayer.challengeStatus === "sent" && (
-            <div className="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 p-5 rounded-2xl border-2 border-blue-500/50 shadow-lg shadow-blue-500/20 animate-pulse">
-              <div className="flex items-center justify-center mb-3">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-              </div>
-              <p className="text-blue-200 text-center font-semibold text-lg">
-                جاري انتظار قبول التحدي...
-              </p>
-              <p className="text-blue-300 text-center text-sm mt-2">
-                يرجى الانتظار حتى يقبل خصمك التحدي
-              </p>
+          <div className="bg-gradient-to-br from-purple-900/40 to-pink-900/40 p-4 rounded-xl border-2 border-purple-500/50">
+            <p className="text-center text-gray-300 text-sm mb-2">رقم الغرفة</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={multiplayer.roomId}
+                className="flex-1 px-4 py-3 bg-slate-900 border-2 border-purple-500/50 rounded-lg text-white font-mono font-bold text-center focus:outline-none"
+              />
+              <Button
+                onClick={() => {
+                  navigator.clipboard.writeText(multiplayer.roomId);
+                  // Optional: Show toast notification
+                }}
+                className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-semibold px-4 py-3 rounded-lg shadow-md"
+              >
+                📋 نسخ
+              </Button>
             </div>
-          )}
-
+          </div>
           {multiplayer.challengeStatus === "received" && (
             <div className="bg-gradient-to-br from-yellow-900/40 to-orange-900/40 p-5 rounded-2xl border-2 border-yellow-500/50 shadow-lg shadow-yellow-500/20 animate-pulse">
               <div className="flex items-center justify-center mb-3">

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNumberGame } from "@/lib/stores/useNumberGame";
+import { send } from "@/lib/websocket";
 
 export function GameHUD() {
   const { mode, singleplayer, multiplayer, setTurnTimeLeft } = useNumberGame();
@@ -13,6 +14,20 @@ export function GameHUD() {
 
     return () => clearInterval(interval);
   }, [mode, multiplayer.isMyTurn, multiplayer.turnTimeLeft, setTurnTimeLeft]);
+
+  // Handle timeout when time reaches 0
+  useEffect(() => {
+    if (mode !== "multiplayer" || !multiplayer.isMyTurn || multiplayer.turnTimeLeft > 0) return;
+
+    // Send timeout message to server
+    send({
+      type: "turn_timeout",
+      opponentId: multiplayer.opponentId,
+    });
+
+    // Disable input by setting isMyTurn to false
+    setTurnTimeLeft(0);
+  }, [mode, multiplayer.isMyTurn, multiplayer.turnTimeLeft, multiplayer.opponentId]);
 
   if (mode === "singleplayer") {
     return (

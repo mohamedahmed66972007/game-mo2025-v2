@@ -24,15 +24,16 @@ function getFeedbackColor(correctCount: number, correctPositionCount: number): s
 }
 
 export function AttemptsHistory() {
-  const { mode, singleplayer } = useNumberGame();
+  const { mode, singleplayer, multiplayer } = useNumberGame();
   const [scrollOffset, setScrollOffset] = useState(0);
   const scrollRef = useRef(0);
 
-  if (mode !== "singleplayer") {
+  if (mode !== "singleplayer" && mode !== "multiplayer") {
     return null;
   }
 
-  const attemptCount = singleplayer.attempts.length;
+  const attempts = mode === "singleplayer" ? singleplayer.attempts : multiplayer.attempts;
+  const attemptCount = attempts.length;
   const itemHeight = 0.65;
   const panelWidth = 5.5;
   const panelHeight = 4.5;
@@ -109,7 +110,7 @@ export function AttemptsHistory() {
   }, [attemptCount, maxVisibleItems, itemHeight]);
 
   const startIndex = Math.floor(scrollOffset / itemHeight);
-  const visibleAttempts = singleplayer.attempts.slice(startIndex, startIndex + maxVisibleItems);
+  const visibleAttempts = attempts.slice(startIndex, startIndex + maxVisibleItems);
 
   const maxScroll = Math.max(0, (attemptCount - maxVisibleItems) * itemHeight);
   const scrollProgress = maxScroll > 0 ? scrollOffset / maxScroll : 0;

@@ -10,7 +10,7 @@ import { AttemptsHistory } from "./AttemptsHistory";
 import { CurrentGuessDisplay } from "./CurrentGuessDisplay";
 import { Crosshair } from "../ui/Crosshair";
 
-function Scene({ onLockChange }: { onLockChange?: (locked: boolean) => void }) {
+function Scene({ onLockChange, isPointerLocked = false }: { onLockChange?: (locked: boolean) => void; isPointerLocked?: boolean }) {
   useEffect(() => {
     const handlePointerLockChange = () => {
       const isLocked = document.pointerLockElement !== null;
@@ -110,7 +110,7 @@ function Scene({ onLockChange }: { onLockChange?: (locked: boolean) => void }) {
         />
       </mesh>
 
-      <NumberPanel />
+      <NumberPanel isPointerLocked={isPointerLocked} />
       <FeedbackPanel />
       <AttemptsHistory />
       <CurrentGuessDisplay />
@@ -144,7 +144,7 @@ export function GameScene() {
             antialias: true,
           }}
         >
-          <Scene onLockChange={setIsLocked} />
+          <Scene onLockChange={setIsLocked} isPointerLocked={isLocked} />
         </Canvas>
       </KeyboardControls>
       {!isLocked && (

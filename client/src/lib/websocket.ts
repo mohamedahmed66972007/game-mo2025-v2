@@ -98,10 +98,11 @@ const handleMessage = (message: any) => {
       break;
 
     case "game_started":
-      // Challenge sender goes first
-      store.setIsMyTurn(store.multiplayer.isChallengeSender);
+      // Reset multiplayer state first, then set turn based on server's firstPlayerId
       store.resetMultiplayer();
-      console.log("Game started. Am I challenge sender?", store.multiplayer.isChallengeSender, "My turn?", store.multiplayer.isChallengeSender);
+      store.setIsMyTurn(message.firstPlayerId === store.multiplayer.playerId);
+      store.setMultiplayerStartTime();
+      console.log("Game started. First player:", message.firstPlayerId, "My ID:", store.multiplayer.playerId, "My turn?", message.firstPlayerId === store.multiplayer.playerId);
       break;
 
     case "guess_result":
@@ -127,12 +128,53 @@ const handleMessage = (message: any) => {
       store.setTurnTimeLeft(60);
 
       if (message.won) {
+        store.setMultiplayerEndTime();
         if (message.playerId === store.multiplayer.playerId) {
           store.setMultiplayerPhase("won");
+          if (message.opponentSecret) {
+            store.setOpponentSecretCode(message.opponentSecret);
+          }
         } else {
           store.setMultiplayerPhase("lost");
+          if (message.opponentSecret) {
+            store.setOpponentSecretCode(message.opponentSecret);
+          }
         }
       }
+      break;
+
+    case "first_winner_reached":
+      store.setFirstWinner(message.firstWinnerId, message.firstWinnerAttempts);
+      if (message.won) {
+        // I am the first winner - show secret but don't end game
+        store.setOpponentSecretCode(message.opponentSecret);
+        useNumberGame.setState((state) => ({
+          multiplayer: {
+            ...state.multiplayer,
+            gameResult: "pending",
+          },
+        }));
+      }
+      break;
+
+    case "game_result":
+      store.setMultiplayerEndTime();
+      if (message.opponentSecret) {
+        store.setOpponentSecretCode(message.opponentSecret);
+      }
+      store.setGameResult(message.result);
+      if (message.result === "won") {
+        store.setMultiplayerPhase("won");
+      } else if (message.result === "lost") {
+        store.setMultiplayerPhase("lost");
+      } else if (message.result === "tie") {
+        store.setMultiplayerPhase("won");
+      }
+      break;
+
+    case "opponent_quit":
+      store.setMultiplayerEndTime();
+      store.setMultiplayerPhase("won");
       break;
 
     case "turn_timeout":
@@ -148,6 +190,18 @@ const handleMessage = (message: any) => {
     case "opponent_quit":
       console.log("Opponent quit");
       store.setMultiplayerPhase("won");
+      break;
+
+    case "rematch_requested":
+      store.setRematchRequested(true);
+      break;
+
+    case "rematch_accepted":
+      store.setMySecretCode([]);
+      store.setOpponentSecretCode([]);
+      store.setRematchRequested(false);
+      store.resetMultiplayer();
+      store.setChallengeStatus("accepted");
       break;
 
     default:
