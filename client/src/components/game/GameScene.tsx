@@ -230,8 +230,8 @@ export function GameScene() {
         </Canvas>
       </KeyboardControls>
       {!isLocked && (
-        <div className="fixed inset-0 flex items-center justify-center pointer-events-none z-40">
-          <div className="text-white text-sm bg-black bg-opacity-50 p-4 rounded text-top">
+        <div className="fixed inset-0 flex flex-col items-center justify-start pointer-events-none z-40 pt-8">
+          <div className="text-white text-sm bg-black bg-opacity-50 p-4 rounded">
             <p className="mb-2">اضغط على الشاشة لقفل المؤشر</p>
           </div>
         </div>
